@@ -8,6 +8,7 @@ import org.apache.http.conn.routing.HttpRoute
 import org.apache.http.impl.client.HttpClients
 import org.apache.http.impl.conn.BasicHttpClientConnectionManager
 import java.io.IOException
+import java.lang.Thread.sleep
 import java.util.concurrent.TimeUnit
 
 /**
@@ -45,7 +46,8 @@ fun apacheConnection()
             .setConnectionManager(connMrg)
             .build()
 
-        val httpGet = HttpGet()
+
+        val httpGet = HttpGet("https://ya.ru")
 
         try
         {
@@ -64,6 +66,7 @@ fun apacheConnection()
             // Handle I/O errors
         }
 
+        sleep(1000)
         httpClient.close()
     }
     finally
