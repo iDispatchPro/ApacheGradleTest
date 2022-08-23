@@ -13,6 +13,8 @@ repositories {
 
 dependencies {
     implementation("org.apache.httpcomponents.core5:httpcore5:5.1.4")
+    implementation("org.apache.httpcomponents:httpclient:4.5.13")
+    implementation("org.eclipse.jetty:jetty-client:11.0.11")
     testImplementation(kotlin("test"))
 }
 

@@ -1,27 +1,78 @@
 package org.apache.hc.core5.http.examples
 
-import org.apache.hc.core5.http.ClassicHttpRequest
-import org.apache.hc.core5.http.ClassicHttpResponse
-import org.apache.hc.core5.http.HttpConnection
-import org.apache.hc.core5.http.HttpHost
-import org.apache.hc.core5.http.HttpRequest
-import org.apache.hc.core5.http.HttpResponse
-import org.apache.hc.core5.http.impl.Http1StreamListener
-import org.apache.hc.core5.http.impl.bootstrap.HttpRequester
-import org.apache.hc.core5.http.impl.bootstrap.RequesterBootstrap
-import org.apache.hc.core5.http.io.SocketConfig
-import org.apache.hc.core5.http.io.entity.EntityUtils
-import org.apache.hc.core5.http.io.support.ClassicRequestBuilder
-import org.apache.hc.core5.http.message.RequestLine
-import org.apache.hc.core5.http.message.StatusLine
-import org.apache.hc.core5.http.protocol.HttpCoreContext
-import org.apache.hc.core5.util.Timeout
+import org.apache.http.HttpHost
+import org.apache.http.client.ClientProtocolException
+import org.apache.http.client.methods.HttpGet
+import org.apache.http.client.protocol.HttpClientContext
+import org.apache.http.conn.routing.HttpRoute
+import org.apache.http.impl.client.HttpClients
+import org.apache.http.impl.conn.BasicHttpClientConnectionManager
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
  * Example of GET requests execution using classic I/O.
  */
 fun main(args: Array<String>)
+{
+    apacheConnection()
+}
+
+fun apacheConnection()
+{
+    val context = HttpClientContext.create()
+    val connMrg = BasicHttpClientConnectionManager()
+    val route = HttpRoute(HttpHost.create("https://ya.ru"))
+
+    // Request new connection. This can be a long process
+    val connRequest = connMrg.requestConnection(route, null)
+
+    // Wait for connection up to 10 sec
+    val conn = connRequest.get(10, TimeUnit.SECONDS)
+
+    try
+    {
+        // If not open
+        if (!conn.isOpen)
+        {
+            // establish connection based on its route info
+            connMrg.connect(conn, route, 1000, context)
+            // and mark it as route complete
+            connMrg.routeComplete(conn, route, context)
+        }
+
+        val httpClient = HttpClients.custom()
+            .setConnectionManager(connMrg)
+            .build()
+
+        val httpGet = HttpGet()
+
+        try
+        {
+            val response = httpClient.execute(httpGet, context)
+
+            response.use { it ->
+                print(it.statusLine)
+            }
+        }
+        catch (ex: ClientProtocolException)
+        {
+            // Handle protocol errors
+        }
+        catch (ex: IOException)
+        {
+            // Handle I/O errors
+        }
+
+        httpClient.close()
+    }
+    finally
+    {
+        connMrg.releaseConnection(conn, null, 1, TimeUnit.MINUTES)
+    }
+}
+/*
+fun testApache()
 {
     val httpRequester: HttpRequester = RequesterBootstrap.bootstrap()
         .setStreamListener(object : Http1StreamListener
@@ -40,11 +91,11 @@ fun main(args: Array<String>)
                                {
                                    if (keepAlive)
                                    {
-                                        println(connection.remoteAddress.toString() + " exchange completed (connection kept alive)")
+                                       println(connection.remoteAddress.toString() + " exchange completed (connection kept alive)")
                                    }
                                    else
                                    {
-                                        println(connection.remoteAddress.toString() + " exchange completed (connection closed)")
+                                       println(connection.remoteAddress.toString() + " exchange completed (connection closed)")
                                    }
                                }
                            })
@@ -69,8 +120,8 @@ fun main(args: Array<String>)
 
         httpRequester.execute(target, request, Timeout.ofSeconds(5), coreContext).use { response ->
             println(requestUri + "->" + response.getCode())
-           // System.out.println(EntityUtils.toString(response.getEntity()))
+            // System.out.println(EntityUtils.toString(response.getEntity()))
             println("==============")
         }
     }
-}
+}*/
