@@ -6,10 +6,11 @@ import org.apache.http.client.methods.HttpGet
 import org.apache.http.client.protocol.HttpClientContext
 import org.apache.http.conn.routing.HttpRoute
 import org.apache.http.impl.client.HttpClients
-import org.apache.http.impl.conn.BasicHttpClientConnectionManager
+import org.apache.http.impl.conn.*
 import java.io.IOException
-import java.lang.Thread.sleep
+import java.util.*
 import java.util.concurrent.TimeUnit
+import java.util.logging.LogManager
 
 /**
  * Example of GET requests execution using classic I/O.
@@ -21,57 +22,83 @@ fun main(args: Array<String>)
 
 fun apacheConnection()
 {
-    val context = HttpClientContext.create()
-    val connMrg = BasicHttpClientConnectionManager()
-    val route = HttpRoute(HttpHost.create("https://ya.ru"))
+    LogManager.getLogManager().reset()
+    repeat(10) {
+        println("")
+        var start = Date().time
 
-    // Request new connection. This can be a long process
-    val connRequest = connMrg.requestConnection(route, null)
+        val address = "https://ya.ru"
 
-    // Wait for connection up to 10 sec
-    val conn = connRequest.get(10, TimeUnit.SECONDS)
+        val context = HttpClientContext.create()
+        val connMrg = BasicHttpClientConnectionManager()
 
-    try
-    {
-        // If not open
-        if (!conn.isOpen)
-        {
-            // establish connection based on its route info
-            connMrg.connect(conn, route, 1000, context)
-            // and mark it as route complete
-            connMrg.routeComplete(conn, route, context)
-        }
+        val route = HttpRoute(HttpHost.create(address), null, true)
 
-        val httpClient = HttpClients.custom()
-            .setConnectionManager(connMrg)
-            .build()
-
-
-        val httpGet = HttpGet("https://ya.ru")
+        // Wait for connection up to 10 sec
+        val connection = connMrg.requestConnection(route, null).get(10, TimeUnit.SECONDS)
 
         try
         {
-            val response = httpClient.execute(httpGet, context)
+            // establish connection based on its route info
+            connMrg.connect(connection, route, 1000, context)
+            // and mark it as route complete
+            //connMrg.routeComplete(conn, route, context)
+            connMrg.releaseConnection(connection, null, 1, TimeUnit.DAYS)
 
-            response.use { it ->
-                print(it.statusLine)
+            println("Connection: " + (Date().time - start).toString())
+
+            start = Date().time
+
+            //val routePlanner = DefaultProxyRoutePlanner(HttpHost("localhost", 8888))
+
+            val httpClient = HttpClients.custom()
+            .setConnectionManager(connMrg)
+            //  .setRoutePlanner(routePlanner)
+            .build()
+
+            //val httpClient = HttpClients.createDefault()
+
+            //            val exeRequest = HttpRequestExecutor()
+
+            //context.targetHost = HttpHost(address, 443)
+            val get = HttpGet(address)
+
+            println(get.toString())
+
+            val response = httpClient.execute(get)
+
+            //          get.addHeader("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+            //            get.addHeader("accept-encoding", "gzip, deflate, br")
+            //            get.addHeader("accept-language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
+
+            //          val response = exeRequest.execute(get, conn, context)
+
+            //val httpGet = HttpGet("https://ya.ru")
+
+            try
+            {
+                // val response = httpClient.execute(httpGet)
+
+                println(response.statusLine)
             }
+            catch (ex: ClientProtocolException)
+            {
+                // Handle protocol errors
+            }
+            catch (ex: IOException)
+            {
+                // Handle I/O errors
+            }
+
+            //sleep(1000)
+            //   httpClient.close()
         }
-        catch (ex: ClientProtocolException)
+        finally
         {
-            // Handle protocol errors
-        }
-        catch (ex: IOException)
-        {
-            // Handle I/O errors
+            //connMrg.releaseConnection(conn, null, 1, TimeUnit.MINUTES)
         }
 
-        sleep(1000)
-        httpClient.close()
-    }
-    finally
-    {
-        connMrg.releaseConnection(conn, null, 1, TimeUnit.MINUTES)
+        println("Request: " + (Date().time - start).toString())
     }
 }
 /*
